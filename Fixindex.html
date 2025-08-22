@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Swag Walk</title>
+<style>
+  html,body{margin:0;padding:0;background:#000;overflow:hidden}
+  canvas{display:block}
+
+  /* End message */
+  #msg{
+    position:fixed; inset:0;
+    display:none; align-items:center; justify-content:center; text-align:center;
+    padding:24px; color:#fff; background:#000; /* solid black */
+    font-family: "Press Start 2P", system-ui, -apple-system, Arial, sans-serif;
+    text-shadow: 0 0 10px #00ffd5, 0 0 20px #00ffd5;
+  }
+  #msg .box{max-width:900px; line-height:1.5; font-size:14px}
+  #restart{
+    margin-top:18px; padding:10px 16px; font-size:12px;
+    border:2px solid #fff; background:#111; color:#fff; border-radius:10px; cursor:pointer;
+  }
+
+  /* tiny hint for sound */
+  #tapHint{
+    position:fixed; left:12px; bottom:10px; color:#bbb; font:12px/1.2 system-ui, -apple-system, Arial;
+    opacity:.85; pointer-events:none;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="msg">
+  <div class="box">
+    Yo lil bro I love you hehehehehhe<br>
+    ur swag tuff jalwa and im poy<br>
+    also genuinely ur the best kam<br>
+    your attitude u pmo off boi no ok<br>
+    on a serious note i love you mostest<br>
+    and pray for everything good<br>
+    may god bless u with teleporting powers
+    <div><button id="restart">Restart</button></div>
+  </div>
+</div>
+
+<div id="tapHint">tap for sound 🔊</div>
+
+<audio id="bgm" src="Music.mp3" loop muted preload="auto"></audio>
+
+<script>
+(() => {
+  // ----- canvas setup -----
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  function fit() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    groundY = canvas.height - 200; // anchor near bottom
+    dogY = canvas.height - 200;
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  // ----- assets (exact filenames) -----
+  const files = {
+    boygirl: "Boygirl.jpg",
+    dog: "Dog.jpg",
+    bgs: ["Kfc.jpg","Chilis.jpg","Icecream.jpg"]
+  };
+
+  function loadImage(src){
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error("Failed to load "+src));
+      img.src = src;
+    });
+  }
+
+  const bgm = document.getElementById('bgm');
+  let musicStarted = false;
+  function startMusicOnce(){
+    if (musicStarted) return;
+    musicStarted = true;
+    document.getElementById('tapHint').style.display = 'none';
+    bgm.muted = false;
+    bgm.play().catch(()=>{}); // iOS sometimes needs one more tap; we tried :)
+  }
+  // start music on ANY first interaction
+  window.addEventListener('pointerdown', startMusicOnce, { once:false });
+
+  // ----- load all images first -----
+  Promise.all([
+    loadImage(files.boygirl),
+    loadImage(files.dog),
+    ...files.bgs.map(loadImage)
+  ]).then(imgs => {
+    const boygirlImg = imgs[0];
+    const dogImg = imgs[1];
+    const bgImgs = imgs.slice(2);
+
+    // ----- game state -----
+    let boyW = 120, boyH = 160;
+    let dogW = 150, dogH = 150;
+
+    let boyX = 50;
+    let groundY = canvas.height - 200;
+    let boyY = groundY;
+    let dogX = canvas.width - (dogW + 70);
+    let dogY = canvas.height - 200;
+
+    let speed = 3; // walk speed
+    let running = true;
+    let ended = false;
+
+    // background crossfade
+    let bgIndex = 0;        // which bg is fully visible
+    let fading = false;     // currently crossfading to next bg?
+    let fadeT = 0;          // 0..1
+    let nextBgIndex = 1;
+
+    // trigger fades as the boy moves (at 1/3 and 2/3 of the width)
+    function checkFadeTriggers(){
+      const w = canvas.width;
+      if (bgIndex === 0 && boyX > w*0.33) startFadeTo(1);
+      if (bgIndex === 1 && boyX > w*0.66) startFadeTo(2);
+    }
+    function startFadeTo(n){
+      if (n <= bgIndex || n >= bgImgs.length) return;
+      fading = true; fadeT = 0; nextBgIndex = n;
+    }
+
+    // fade to black at end
+    let fadeBlack = 0; // 0..1
+
+    function drawBackground(){
+      // base
+      ctx.globalAlpha = 1;
+      ctx.drawImage(bgImgs[bgIndex], 0, 0, canvas.width, canvas.height);
+      // crossfade to next
+      if (fading){
+        ctx.globalAlpha = fadeT;
+        ctx.drawImage(bgImgs[nextBgIndex], 0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+      }
+      // black overlay at the end
+      if (fadeBlack > 0){
+        ctx.globalAlpha = fadeBlack;
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function update(){
+      if (!ended){
+        // walk until near dog
+        if (boyX + boyW < dogX - 20) {
+          boyX += speed;
+          checkFadeTriggers();
+        } else {
+          // reached dog -> begin fade to black, then show message
+          ended = true;
+        }
+
+        // bg crossfade step
+        if (fading){
+          fadeT += 0.02; // fade speed
+          if (fadeT >= 1){
+            bgIndex = nextBgIndex;
+            fading = false;
+            fadeT = 0;
+          }
+        }
+      } else {
+        // fade screen to black
+        if (fadeBlack < 1) {
+          fadeBlack += 0.03;
+          if (fadeBlack >= 1){
+            // show message + restart
+            document.getElementById('msg').style.display = 'flex';
+          }
+        }
+      }
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawBackground();
+      // sprites only before full black
+      if (fadeBlack < 1){
+        // dog
+        ctx.drawImage(dogImg, dogX, dogY, dogW, dogH);
+        // boy & girl
+        ctx.drawImage(boygirlImg, boyX, boyY, boyW, boyH);
+      }
+    }
+
+    function loop(){
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    // keep ground/dog aligned on resize
+    window.addEventListener('resize', () => {
+      dogX = canvas.width - (dogW + 70);
+      boyY = canvas.height - 200;
+      dogY = canvas.height - 200;
+    });
+
+    // restart button
+    document.getElementById('restart').addEventListener('click', () => {
+      document.getElementById('msg').style.display = 'none';
+      // reset all state (music keeps looping)
+      boyX = 50;
+      bgIndex = 0;
+      fading = false; fadeT = 0; nextBgIndex = 1;
+      ended = false; fadeBlack = 0;
+    });
+
+    // start the loop
+    loop();
+  }).catch(err => {
+    // If something fails, show a helpful message on screen
+    const el = document.createElement('pre');
+    el.style.position = 'fixed';
+    el.style.top = '10px';
+    el.style.left = '10px';
+    el.style.color = '#fff';
+    el.style.background = 'rgba(0,0,0,.6)';
+    el.style.padding = '8px';
+    el.style.font = '12px/1.4 monospace';
+    el.textContent = 'Asset load error: ' + err.message + '\nCheck filenames exactly: Boygirl.jpg, Dog.jpg, Kfc.jpg, Chilis.jpg, Icecream.jpg, Music.mp3';
+    document.body.appendChild(el);
+  });
+})();
+</script>
+</body>
+</html>
