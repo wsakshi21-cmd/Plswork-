@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Boy & Girl Walk</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+    }
+    #message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 26px;
+      font-family: Arial, sans-serif;
+      color: white;
+      text-align: center;
+      display: none;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="message">
+    Yo lil bro I love you hehehehehhe<br>
+    ur swag tuff jalwa and im poy also<br>
+    genuinely ur the best kam your attitude<br>
+    u pmo off boi no ok on a serious note<br>
+    i love you mostest and pray for everything good<br>
+    may god bless u with teleporting powers
+  </div>
+  <audio id="bgm" src="Music.mp3" autoplay loop></audio>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Load assets
+    const boygirl = new Image();
+    boygirl.src = "Boygirl.jpg";
+
+    const dog = new Image();
+    dog.src = "Dog.jpg";
+
+    const backgrounds = ["Kfc.jpg", "Chilis.jpg", "Icecream.jpg"].map(src => {
+      let img = new Image();
+      img.src = src;
+      return img;
+    });
+
+    let bgIndex = 0;
+    let boyX = 50;
+    let boyY = canvas.height - 300;
+    let speed = 5;
+    let showMessage = false;
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!showMessage) {
+        // Draw background
+        ctx.drawImage(backgrounds[bgIndex], 0, 0, canvas.width, canvas.height);
+
+        // Draw boy & girl
+        ctx.drawImage(boygirl, boyX, boyY, 180, 240);
+
+        // Draw dog
+        ctx.drawImage(dog, canvas.width - 300, boyY, 200, 200);
+      }
+    }
+
+    function update() {
+      if (!showMessage) {
+        if (boyX + 180 < canvas.width - 300) {
+          boyX += speed;
+        } else {
+          if (bgIndex < backgrounds.length - 1) {
+            bgIndex++;
+          } else {
+            showMessage = true;
+            document.getElementById("message").style.display = "block";
+          }
+        }
+      }
+    }
+
+    function loop() {
+      draw();
+      update();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
